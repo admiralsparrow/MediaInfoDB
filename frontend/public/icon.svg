@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bg)"/>
+  <!-- Film strip perforations left -->
+  <rect x="40" y="60" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="40" y="120" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="40" y="180" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="40" y="240" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="40" y="300" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="40" y="360" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="40" y="420" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <!-- Film strip perforations right -->
+  <rect x="444" y="60" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="444" y="120" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="444" y="180" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="444" y="240" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="444" y="300" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="444" y="360" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <rect x="444" y="420" width="28" height="36" rx="6" fill="rgba(255,255,255,0.3)"/>
+  <!-- Center circle -->
+  <circle cx="256" cy="256" r="140" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.6)" stroke-width="8"/>
+  <!-- Info "i" symbol -->
+  <circle cx="256" cy="190" r="22" fill="white"/>
+  <rect x="234" y="232" width="44" height="120" rx="22" fill="white"/>
+</svg>

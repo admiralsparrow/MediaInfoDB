@@ -1,0 +1,26 @@
+services:
+  mediainfodb:
+    container_name: mediainfodb
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ${MOVIES:-/media}:/media/movies:ro
+      - ${TV:-/media}:/media/tv:ro
+      - ${DB_DATA_PATH:-mediainfodb-data}:/var/lib/postgresql/data
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-}
+      DB_PASSWORD: ${DB_PASSWORD:-mediainfo_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-mediainfodb}
+      POSTGRES_USER: ${POSTGRES_USER:-mediainfodb}
+      ALLOWED_BROWSE_ROOTS: ${ALLOWED_BROWSE_ROOTS:-/media}
+      SCAN_INTERVAL_MINUTES: ${SCAN_INTERVAL_MINUTES:-360}
+    ports:
+      - "3745:3745"
+    mem_limit: 2g
+    cpus: 2.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3745/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
