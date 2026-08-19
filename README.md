@@ -16,6 +16,8 @@ A self-hosted web application that scans video files for media information (code
 - **Automatic re-scans** — Configurable interval for detecting new/changed files (mtime-based).
 - **Single container** — One `docker compose up` runs PostgreSQL, the backend, and nginx in a single container.
 
+<img width="3839" height="2016" alt="image" src="https://github.com/user-attachments/assets/6a662768-fe82-4154-ad6b-3b27e2efbdc9" />
+
 ## Quick Start
 
 1. Create a directory and add the two files below:

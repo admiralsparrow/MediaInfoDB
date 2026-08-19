@@ -366,7 +366,7 @@ def _compute_resolution(height: int | None, width: int | None) -> str | None:
     if height is None and width is None:
         return None
     _TIERS = [
-        (4320, 7680, "8640p"),
+        (4320, 7680, "4320p"),
         (2160, 3840, "2160p"),
         (1080, 1920, "1080p"),
         (720, 1280, "720p"),

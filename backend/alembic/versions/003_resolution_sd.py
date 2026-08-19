@@ -22,7 +22,7 @@ def upgrade() -> None:
             SET resolution = 'SD'
             WHERE resolution IS NOT NULL
               AND resolution != 'SD'
-              AND resolution NOT IN ('480p', '540p', '720p', '1080p', '2160p', '8640p')
+              AND resolution NOT IN ('480p', '540p', '720p', '1080p', '2160p', '4320p')
         """)
     )
 
