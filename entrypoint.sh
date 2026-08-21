@@ -47,12 +47,13 @@ if [ -z "$DATABASE_URL" ]; then
     done
 
     # Create database if it doesn't exist (user is the superuser from initdb)
-    sudo -u postgres psql -U "$DB_USER" -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 || \
-        sudo -u postgres psql -U "$DB_USER" -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+    # Connect to 'postgres' db explicitly — the app db may not exist yet on fresh clusters
+    sudo -u postgres psql -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 || \
+        sudo -u postgres psql -U "$DB_USER" -d postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
 
     # Set/update password using escaped value to avoid injection
     ESCAPED_PW=$(printf '%s' "$DB_PASSWORD" | sed "s/'/''/g")
-    sudo -u postgres psql -U "$DB_USER" -c "ALTER USER $DB_USER WITH PASSWORD '${ESCAPED_PW}';"
+    sudo -u postgres psql -U "$DB_USER" -d postgres -c "ALTER USER $DB_USER WITH PASSWORD '${ESCAPED_PW}';"
 
     URL_ENCODED_PW=$(printf '%s' "$DB_PASSWORD" | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read(), safe=''))")
     export DATABASE_URL="postgresql+asyncpg://${DB_USER}:${URL_ENCODED_PW}@localhost:5432/${DB_NAME}"

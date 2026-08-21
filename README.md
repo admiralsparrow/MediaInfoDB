@@ -120,20 +120,20 @@ DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/mediainfo docker compose u
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│              Single Container (:3745)             │
-│                                                   │
-│  ┌──────────┐   ┌──────────┐   ┌─────────────┐  │
-│  │  nginx   │──>│  FastAPI  │──>│ PostgreSQL  │  │
-│  │  proxy   │   │  backend  │   │   16 (embed)│  │
-│  └──────────┘   └──────────┘   └─────────────┘  │
-│       │              │                            │
-│       │              ▼                            │
-│       │       /media (read-only)                  │
-│       ▼                                           │
-│  Static frontend                                  │
-│  (React/Vite build)                               │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│              Single Container (:3745)            │
+│                                                  │
+│  ┌──────────┐   ┌───────────┐   ┌────────────┐   │
+│  │  nginx   │──>│  FastAPI  │──>│ PostgreSQL │   │
+│  │  proxy   │   │  backend  │   │ 16 (embed) │   │
+│  └──────────┘   └───────────┘   └────────────┘   │
+│       │              │                           │
+│       │              ▼                           │
+│       │       /media (read-only)                 │
+│       ▼                                          │
+│  Static frontend                                 │
+│  (React/Vite build)                              │
+└──────────────────────────────────────────────────┘
 ```
 
 - **Frontend** — React 18, TypeScript, Vite, TanStack Query. Built at image build time and served as static files by nginx, which also proxies `/api` to the backend.
@@ -182,9 +182,8 @@ alembic upgrade head
 The backend exposes a REST API under `/api/v1`. See [API.md](API.md) for full endpoint documentation, request/response schemas, and filter reference.
 
 
-## Notice
-This project does not use, and has no ties with MediaInfo by MediaArena.
-
 ## License
 
-MIT
+MIT — see [LICENSE.md](LICENSE.md).
+
+Third-party licenses and attributions for bundled dependencies are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

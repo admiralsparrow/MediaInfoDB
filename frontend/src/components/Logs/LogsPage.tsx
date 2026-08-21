@@ -60,6 +60,7 @@ export default function LogsPage() {
                 <th>Duration</th>
                 <th>Files Found</th>
                 <th>Files Scanned</th>
+                <th>Files Removed</th>
                 <th>Error</th>
               </tr>
             </thead>
@@ -120,13 +121,14 @@ function LogRow({
         <td>{duration}</td>
         <td>{entry.files_found}</td>
         <td>{entry.files_scanned}</td>
+        <td>{entry.files_removed || "—"}</td>
         <td className="error-cell" title={entry.error_message || ""}>
           {entry.error_message ? entry.error_message.slice(0, 60) : "—"}
         </td>
       </tr>
       {isExpanded && (
         <tr className="log-row-expanded">
-          <td colSpan={8}>
+          <td colSpan={9}>
             <ExpandedFiles jobId={entry.id} />
           </td>
         </tr>
@@ -142,17 +144,31 @@ function ExpandedFiles({ jobId }: { jobId: number }) {
   });
 
   if (isLoading) return <div className="expanded-files">Loading files...</div>;
-  if (!data || data.files.length === 0)
+  if (!data || (data.files.length === 0 && data.removed_files.length === 0))
     return <div className="expanded-files">No files recorded for this scan job.</div>;
 
   return (
     <div className="expanded-files">
-      <div className="expanded-files-header">{data.files.length} file(s) processed</div>
-      <ul className="expanded-files-list">
-        {data.files.map((f) => (
-          <li key={f.id}>{f.relative_path}</li>
-        ))}
-      </ul>
+      {data.files.length > 0 && (
+        <>
+          <div className="expanded-files-header">{data.files.length} file(s) processed</div>
+          <ul className="expanded-files-list">
+            {data.files.map((f) => (
+              <li key={f.id}>{f.relative_path}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {data.removed_files.length > 0 && (
+        <>
+          <div className="expanded-files-header">{data.removed_files.length} file(s) removed</div>
+          <ul className="expanded-files-list">
+            {data.removed_files.map((name, i) => (
+              <li key={`removed-${i}`} className="removed-file">{name}</li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

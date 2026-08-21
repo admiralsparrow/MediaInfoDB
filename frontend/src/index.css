@@ -1742,6 +1742,11 @@ button.library-item.active {
   border-bottom: none;
 }
 
+.expanded-files-list li.removed-file {
+  color: #e53935;
+  text-decoration: line-through;
+}
+
 /* Saved Queries */
 .saved-queries-section {
   margin-bottom: 0.75rem;

@@ -118,9 +118,10 @@ async def enqueue_folder(folder_id: int, force: bool = False):
                     select(MediaFile).where(MediaFile.file_path.in_(batch))
                 )
                 for mf in stale.scalars().all():
+                    logger.info("File removed from disk, deleting from DB: %s", mf.file_path)
                     await db.delete(mf)
                 await db.commit()
-            logger.info("Removed %d stale files from folder %s", len(removed_paths), folder.path)
+            logger.info("Removed %d stale file(s) from folder %s", len(removed_paths), folder.path)
 
         items_to_add = []
         for file_path in video_files:
@@ -159,7 +160,7 @@ async def enqueue_folder(folder_id: int, force: bool = False):
             .where(ScanQueueItem.status == "pending")
         )
         logger.info("Enqueued %d new files for folder %s", total, folder.path)
-        return total or 0
+        return total or 0, removed_paths
 
 
 async def process_queue(folder_id: int):
@@ -228,7 +229,11 @@ async def _do_process_queue(folder_id: int, job_id: int):
                         existing_file = existing.scalar_one_or_none()
                         if existing_file:
                             await db.delete(existing_file)
-                            logger.info("Removed missing file from DB: %s", item.file_path)
+                            job.files_removed += 1
+                            if job.removed_file_paths is None:
+                                job.removed_file_paths = []
+                            job.removed_file_paths = job.removed_file_paths + [os.path.basename(item.file_path)]
+                            logger.info("File removed from disk, deleting from DB: %s", item.file_path)
                         item.status = "completed"
                         item.completed_at = datetime.now(timezone.utc)
                         job.files_scanned += 1
@@ -373,7 +378,7 @@ async def run_folder_scan(folder_id: int, force: bool = False):
             job_id = job.id
 
         try:
-            await enqueue_folder(folder_id, force=force)
+            _enqueued, removed_paths = await enqueue_folder(folder_id, force=force)
         except Exception as e:
             async with async_session() as db:
                 job = await db.get(ScanJob, job_id)
@@ -382,5 +387,12 @@ async def run_folder_scan(folder_id: int, force: bool = False):
                 job.finished_at = datetime.now(timezone.utc)
                 await db.commit()
             return
+
+        if removed_paths:
+            async with async_session() as db:
+                job = await db.get(ScanJob, job_id)
+                job.files_removed = len(removed_paths)
+                job.removed_file_paths = [os.path.basename(p) for p in removed_paths]
+                await db.commit()
 
         await _process_queue_with_job(folder_id, job_id)
