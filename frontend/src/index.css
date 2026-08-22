@@ -80,6 +80,32 @@ body {
   color: var(--text-muted);
 }
 
+.scan-banner-abort {
+  margin-left: auto;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  border: 1px solid var(--primary);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.scan-banner-abort:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.scan-banner-abort:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scan-banner-stopping {
+  opacity: 0.6;
+}
+
 .health-banner {
   display: flex;
   align-items: center;
@@ -1033,7 +1059,7 @@ button.library-item.active {
 }
 
 .media-table {
-  width: 100%;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.85rem;
@@ -1120,6 +1146,8 @@ button.library-item.active {
 .media-table td {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .media-table tbody tr {

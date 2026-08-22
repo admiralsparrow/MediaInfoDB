@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy import select, text
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.database import get_db
 from app.models import ScanJob, ScannedFolder
+from app.worker.scheduler import request_abort
 
 router = APIRouter()
 
@@ -36,3 +39,23 @@ async def active_scans(db: AsyncSession = Depends(get_db)):
         }
         for job in jobs
     ]
+
+
+@router.post("/scans/{job_id}/abort")
+async def abort_scan(job_id: int, db: AsyncSession = Depends(get_db)):
+    job = await db.get(ScanJob, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Scan job not found")
+    if job.status != "running":
+        raise HTTPException(status_code=409, detail="Scan is not running")
+
+    request_abort(job.folder_id)
+
+    await db.execute(
+        update(ScanJob)
+        .where(ScanJob.id == job_id)
+        .values(status="aborted", finished_at=datetime.now(timezone.utc))
+    )
+    await db.commit()
+
+    return {"message": "Abort requested"}

@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { removeFolderFromLibrary } from "../../api/folders";
 import { createLibrary, deleteLibrary, updateLibrary } from "../../api/libraries";
 import type { Library } from "../../types/folder";
@@ -31,9 +32,14 @@ export default function LibrarySettings({ libraries, onClose, onLibraryDeleted }
   const deleteMutation = useMutation({
     mutationFn: deleteLibrary,
     onSuccess: (_data, id) => {
+      const name = libraries.find((l) => l.id === id)?.name ?? "Library";
       queryClient.invalidateQueries({ queryKey: ["libraries"] });
       onLibraryDeleted(id);
       setConfirmDeleteId(null);
+      toast.success(`Deleted library "${name}"`);
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete library: ${err.message}`);
     },
   });
 
@@ -48,11 +54,17 @@ export default function LibrarySettings({ libraries, onClose, onLibraryDeleted }
   const removeFolderMutation = useMutation({
     mutationFn: ({ folderId, libraryId }: { folderId: number; libraryId: number }) =>
       removeFolderFromLibrary(folderId, libraryId),
-    onSuccess: () => {
+    onSuccess: (_data, { folderId, libraryId }) => {
+      const lib = libraries.find((l) => l.id === libraryId);
+      const folder = lib?.folders.find((f) => f.id === folderId);
       queryClient.invalidateQueries({ queryKey: ["libraries"] });
       queryClient.invalidateQueries({ queryKey: ["media"] });
       queryClient.invalidateQueries({ queryKey: ["mediaCount"] });
       setConfirmRemoveFolder(null);
+      toast.success(`Removed folder "${folder?.path ?? "folder"}" from ${lib?.name ?? "library"}`);
+    },
+    onError: (err) => {
+      toast.error(`Failed to remove folder: ${err.message}`);
     },
   });
 

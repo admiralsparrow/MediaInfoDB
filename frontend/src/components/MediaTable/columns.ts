@@ -300,12 +300,12 @@ export const ALL_COLUMNS: ColumnDef[] = [
     label: "Track Name",
     group: "audio",
     getValue: (f) => {
-      const names = f.audio_tracks
-        ?.map((t) => getDisplayName(t.track_name, t.language))
-        .filter(Boolean);
-      if (!names?.length) return "-";
-      const joined = names.join(", ");
-      return joined.length > 30 ? joined.slice(0, 30) + "…" : joined;
+      if (!f.audio_tracks?.length) return "-";
+      const names = f.audio_tracks.map((t) => getDisplayName(t.track_name, t.language) || "-");
+      const shown = names.slice(0, 2);
+      const remaining = names.length - 2;
+      if (remaining > 0) shown.push(`+${remaining} more`);
+      return shown.join("\n");
     },
   },
   {

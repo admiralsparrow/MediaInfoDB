@@ -7,12 +7,27 @@ from app.config import settings
 
 scheduler = AsyncIOScheduler()
 _scan_locks: dict[int, asyncio.Lock] = {}
+_abort_events: dict[int, asyncio.Event] = {}
 
 
 def get_scan_lock(folder_id: int) -> asyncio.Lock:
     if folder_id not in _scan_locks:
         _scan_locks[folder_id] = asyncio.Lock()
     return _scan_locks[folder_id]
+
+
+def get_abort_event(folder_id: int) -> asyncio.Event:
+    if folder_id not in _abort_events:
+        _abort_events[folder_id] = asyncio.Event()
+    return _abort_events[folder_id]
+
+
+def request_abort(folder_id: int):
+    get_abort_event(folder_id).set()
+
+
+def clear_abort(folder_id: int):
+    get_abort_event(folder_id).clear()
 
 
 async def start_scheduler():

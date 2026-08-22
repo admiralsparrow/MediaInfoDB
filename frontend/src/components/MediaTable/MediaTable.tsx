@@ -27,7 +27,15 @@ export default function MediaTable({ filters }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<string[]>(loadColumns);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
-  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem("mediainfo-col-widths");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
+  const colWidthsRef = useRef(colWidths);
+  colWidthsRef.current = colWidths;
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -174,7 +182,14 @@ export default function MediaTable({ filters }: Props) {
                   order={order}
                   width={colWidths[col.key]}
                   onSort={handleSort}
-                  onResize={(w) => setColWidths({ ...colWidths, [col.key]: w })}
+                  onResize={(w) => setColWidths((prev) => {
+                    if (w === 0) {
+                      const { [col.key]: _, ...rest } = prev;
+                      return rest;
+                    }
+                    return { ...prev, [col.key]: w };
+                  })}
+                  onResizeEnd={() => localStorage.setItem("mediainfo-col-widths", JSON.stringify(colWidthsRef.current))}
                   onDragStart={() => handleDragStart(col.key)}
                   onDragOver={(e) => handleDragOver(e, col.key)}
                   onDragEnd={handleDragEnd}
@@ -204,8 +219,8 @@ export default function MediaTable({ filters }: Props) {
                   {visibleColumns.map((col) => (
                     <td
                       key={col.key}
-                      className={["filename", "audio_name", "sub_names", "title"].includes(col.key) ? "col-title" : ""}
-                      style={colWidths[col.key] ? { width: colWidths[col.key] } : undefined}
+                      className={["filename", "audio_name", "sub_names", "title"].includes(col.key) && !colWidths[col.key] ? "col-title" : ""}
+                      style={colWidths[col.key] ? { width: colWidths[col.key], minWidth: colWidths[col.key], maxWidth: colWidths[col.key] } : undefined}
                     >
                       {renderCell(col, file)}
                     </td>
@@ -269,6 +284,7 @@ interface ResizableHeaderProps {
   width: number | undefined;
   onSort: (field: string | undefined) => void;
   onResize: (width: number) => void;
+  onResizeEnd: () => void;
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragEnd: () => void;
@@ -277,7 +293,7 @@ interface ResizableHeaderProps {
 }
 
 function ResizableHeader({
-  col, sort, order, width, onSort, onResize,
+  col, sort, order, width, onSort, onResize, onResizeEnd,
   onDragStart, onDragOver, onDragEnd, isDragging, isDragOver,
 }: ResizableHeaderProps) {
   const thRef = useRef<HTMLTableCellElement>(null);
@@ -299,11 +315,12 @@ function ResizableHeader({
     const handleMouseUp = () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      onResizeEnd();
     };
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [onResize]);
+  }, [onResize, onResizeEnd]);
 
   const active = sort === col.sortField;
 
@@ -311,7 +328,7 @@ function ResizableHeader({
     <th
       ref={thRef}
       className={`${col.sortField ? "sortable" : ""} ${active ? "sorted" : ""} ${isDragging ? "dragging" : ""} ${isDragOver ? "drag-over" : ""}`}
-      style={width ? { width } : undefined}
+      style={width ? { width, minWidth: width } : undefined}
       draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
@@ -325,7 +342,11 @@ function ResizableHeader({
         {col.label}
         {active && <span className="sort-arrow">{order === "asc" ? " ▲" : " ▼"}</span>}
       </span>
-      <span className="resize-handle" onMouseDown={handleMouseDown} />
+      <span
+        className="resize-handle"
+        onMouseDown={handleMouseDown}
+        onDoubleClick={(e) => { e.stopPropagation(); onResize(0); onResizeEnd(); }}
+      />
     </th>
   );
 }

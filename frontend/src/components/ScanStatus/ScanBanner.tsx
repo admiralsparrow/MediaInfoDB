@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../api/client";
 
 interface ActiveScan {
@@ -19,9 +19,14 @@ interface Props {
   onNavigateToQueue?: (folderId: number | null) => void;
 }
 
+function abortScan(jobId: number): Promise<unknown> {
+  return apiFetch(`/scans/${jobId}/abort`, { method: "POST" });
+}
+
 export default function ScanBanner({ onNavigateToQueue }: Props) {
   const queryClient = useQueryClient();
   const wasScanning = useRef(false);
+  const [aborting, setAborting] = useState(false);
 
   const { data: scans } = useQuery({
     queryKey: ["activeScans"],
@@ -29,10 +34,21 @@ export default function ScanBanner({ onNavigateToQueue }: Props) {
     refetchInterval: 2000,
   });
 
+  const abortMutation = useMutation({
+    mutationFn: abortScan,
+    onMutate: () => {
+      setAborting(true);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activeScans"] });
+    },
+  });
+
   const isScanning = (scans?.length ?? 0) > 0;
 
   useEffect(() => {
     if (wasScanning.current && !isScanning) {
+      setAborting(false);
       queryClient.invalidateQueries({ queryKey: ["media"] });
       queryClient.invalidateQueries({ queryKey: ["mediaCount"] });
       queryClient.invalidateQueries({ queryKey: ["libraries"] });
@@ -42,12 +58,27 @@ export default function ScanBanner({ onNavigateToQueue }: Props) {
 
   if (!scans?.length) return null;
 
+  if (aborting) {
+    return (
+      <div className="scan-banner scan-banner-stopping">
+        <span>Stopping scan...</span>
+      </div>
+    );
+  }
+
   const discovering = scans.filter((s) => s.phase === "discovering");
   const scanning = scans.filter((s) => s.phase === "scanning");
   const totalFound = scanning.reduce((s, j) => s + j.files_found, 0);
   const totalScanned = scanning.reduce((s, j) => s + j.files_scanned, 0);
 
   const folderName = (s: ActiveScan) => s.folder_path.split("/").pop();
+
+  const handleAbort = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    for (const scan of scans!) {
+      abortMutation.mutate(scan.id);
+    }
+  };
 
   return (
     <div className="scan-banner" onClick={() => onNavigateToQueue?.(scans[0]?.folder_id ?? null)} style={{ cursor: "pointer" }}>
@@ -75,6 +106,14 @@ export default function ScanBanner({ onNavigateToQueue }: Props) {
           </span>
         )}
       </span>
+      <button
+        className="scan-banner-abort"
+        onClick={handleAbort}
+        disabled={abortMutation.isPending}
+        title="Abort scan"
+      >
+        Stop
+      </button>
     </div>
   );
 }

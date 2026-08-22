@@ -39,22 +39,33 @@ async def add_folder(body: FolderCreate, db: AsyncSession = Depends(get_db)):
     if not folder_browser.is_path_allowed(body.path):
         raise HTTPException(status_code=403, detail="Path outside allowed roots")
 
-    existing = await db.execute(
-        select(ScannedFolder).where(ScannedFolder.path == body.path)
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Folder already added")
-
     # Validate libraries exist
     libs_result = await db.execute(
         select(Library).where(Library.id.in_(body.library_ids))
     )
-    libraries = libs_result.scalars().all()
+    libraries = list(libs_result.scalars().all())
     if len(libraries) != len(body.library_ids):
         raise HTTPException(status_code=400, detail="One or more library IDs not found")
 
+    existing_result = await db.execute(
+        select(ScannedFolder)
+        .options(selectinload(ScannedFolder.libraries))
+        .where(ScannedFolder.path == body.path)
+    )
+    folder = existing_result.scalar_one_or_none()
+
+    if folder:
+        existing_lib_ids = {lib.id for lib in folder.libraries}
+        new_libs = [lib for lib in libraries if lib.id not in existing_lib_ids]
+        if not new_libs:
+            raise HTTPException(status_code=409, detail="Folder already belongs to all specified libraries")
+        folder.libraries = list(folder.libraries) + new_libs
+        await db.commit()
+        await db.refresh(folder, ["libraries"])
+        return FolderResponse.from_folder(folder)
+
     folder = ScannedFolder(path=body.path, scan_interval_minutes=body.scan_interval_minutes)
-    folder.libraries = list(libraries)
+    folder.libraries = libraries
     db.add(folder)
     await db.commit()
     await db.refresh(folder, ["libraries"])

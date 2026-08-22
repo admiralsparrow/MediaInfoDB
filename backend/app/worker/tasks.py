@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.database import async_session
 from app.models import MediaFile, ScanJob, ScanQueueItem, ScannedFolder
 from app.services.scanner import scan_file, find_video_files
-from app.worker.scheduler import get_scan_lock
+from app.worker.scheduler import clear_abort, get_abort_event, get_scan_lock
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +170,7 @@ async def process_queue(folder_id: int):
         return
 
     async with lock:
+        clear_abort(folder_id)
         async with async_session() as db:
             folder = await db.get(ScannedFolder, folder_id)
             if not folder or not folder.enabled:
@@ -204,8 +205,20 @@ async def _do_process_queue(folder_id: int, job_id: int):
 
         folder = await db.get(ScannedFolder, folder_id)
 
+        abort_event = get_abort_event(folder_id)
+
         try:
             while True:
+                if abort_event.is_set():
+                    await db.execute(
+                        update(ScanJob)
+                        .where(ScanJob.id == job_id)
+                        .values(status="aborted", finished_at=datetime.now(timezone.utc))
+                    )
+                    await db.commit()
+                    logger.info("Scan aborted for folder_id=%d", folder_id)
+                    return
+
                 result = await db.execute(
                     select(ScanQueueItem)
                     .where(ScanQueueItem.folder_id == folder_id)
@@ -367,6 +380,7 @@ async def run_folder_scan(folder_id: int, force: bool = False):
         return
 
     async with lock:
+        clear_abort(folder_id)
         async with async_session() as db:
             folder = await db.get(ScannedFolder, folder_id)
             if not folder or not folder.enabled:
@@ -386,6 +400,15 @@ async def run_folder_scan(folder_id: int, force: bool = False):
                 job.error_message = str(e)[:500]
                 job.finished_at = datetime.now(timezone.utc)
                 await db.commit()
+            return
+
+        if get_abort_event(folder_id).is_set():
+            async with async_session() as db:
+                job = await db.get(ScanJob, job_id)
+                job.status = "aborted"
+                job.finished_at = datetime.now(timezone.utc)
+                await db.commit()
+            logger.info("Scan aborted during discovery for folder_id=%d", folder_id)
             return
 
         if removed_paths:
