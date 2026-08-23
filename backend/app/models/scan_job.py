@@ -22,7 +22,9 @@ class ScanJob(Base):
     files_found: Mapped[int] = mapped_column(Integer, default=0)
     files_scanned: Mapped[int] = mapped_column(Integer, default=0)
     files_removed: Mapped[int] = mapped_column(Integer, default=0)
+    files_rescanned: Mapped[int] = mapped_column(Integer, default=0)
     removed_file_paths: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    rescanned_file_paths: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
 
     folder = relationship("ScannedFolder", back_populates="scan_jobs")

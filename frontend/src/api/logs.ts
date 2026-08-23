@@ -9,6 +9,7 @@ export interface ScanLogEntry {
   status: string;
   files_found: number;
   files_scanned: number;
+  files_rescanned: number;
   files_removed: number;
   error_message: string | null;
 }
@@ -27,6 +28,7 @@ export interface ScanJobFile {
 export interface ScanJobFilesResponse {
   files: ScanJobFile[];
   removed_files: string[];
+  rescanned_files: string[];
 }
 
 export function fetchScanLogs(params?: {

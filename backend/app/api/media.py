@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -200,7 +200,11 @@ async def rescan_files(
                 priority=10,
                 status="pending",
             )
-            .on_conflict_do_nothing(index_elements=["file_path"], index_where=ScanQueueItem.status.in_(["pending", "processing"]))
+            .on_conflict_do_update(
+                index_elements=["file_path"],
+                index_where=text("status IN ('pending', 'processing')"),
+                set_={"priority": 10, "media_file_id": f.id, "status": "pending"},
+            )
         )
         await db.execute(stmt)
         folder_ids.add(f.folder_id)

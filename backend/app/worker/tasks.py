@@ -195,6 +195,13 @@ async def _do_process_queue(folder_id: int, job_id: int):
         job = await db.get(ScanJob, job_id)
         job.phase = "scanning"
 
+        await db.execute(
+            update(ScanQueueItem)
+            .where(ScanQueueItem.folder_id == folder_id)
+            .where(ScanQueueItem.status == "processing")
+            .values(status="pending")
+        )
+
         pending_count = await db.scalar(
             select(func.count()).select_from(ScanQueueItem)
             .where(ScanQueueItem.folder_id == folder_id)
@@ -334,6 +341,10 @@ async def _do_process_queue(folder_id: int, job_id: int):
                             st.media_file_id = existing_file.id
                             st.media_file = None
                             existing_file.subtitle_tracks.append(st)
+                        job.files_rescanned += 1
+                        if job.rescanned_file_paths is None:
+                            job.rescanned_file_paths = []
+                        job.rescanned_file_paths = job.rescanned_file_paths + [os.path.basename(item.file_path)]
                     else:
                         scanned.folder_id = folder_id
                         scanned.file_modified_at = mtime

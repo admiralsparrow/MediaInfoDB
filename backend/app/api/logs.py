@@ -44,6 +44,7 @@ async def get_scan_logs(
                 "status": job.status,
                 "files_found": job.files_found,
                 "files_scanned": job.files_scanned,
+                "files_rescanned": job.files_rescanned,
                 "files_removed": job.files_removed,
                 "error_message": job.error_message,
             }
@@ -83,4 +84,5 @@ async def get_scan_job_files(
             for row in rows
         ],
         "removed_files": job.removed_file_paths or [],
+        "rescanned_files": job.rescanned_file_paths or [],
     }

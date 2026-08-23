@@ -144,16 +144,29 @@ function ExpandedFiles({ jobId }: { jobId: number }) {
   });
 
   if (isLoading) return <div className="expanded-files">Loading files...</div>;
-  if (!data || (data.files.length === 0 && data.removed_files.length === 0))
+  if (!data || (data.files.length === 0 && data.removed_files.length === 0 && data.rescanned_files.length === 0))
     return <div className="expanded-files">No files recorded for this scan job.</div>;
+
+  const rescannedSet = new Set(data.rescanned_files);
+  const importedFiles = data.files.filter((f) => !rescannedSet.has(f.file_name));
 
   return (
     <div className="expanded-files">
-      {data.files.length > 0 && (
+      {data.rescanned_files.length > 0 && (
         <>
-          <div className="expanded-files-header">{data.files.length} file(s) processed</div>
+          <div className="expanded-files-header">{data.rescanned_files.length} file(s) re-scanned</div>
           <ul className="expanded-files-list">
-            {data.files.map((f) => (
+            {data.rescanned_files.map((name, i) => (
+              <li key={`rescanned-${i}`} className="rescanned-file">{name}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {importedFiles.length > 0 && (
+        <>
+          <div className="expanded-files-header">{importedFiles.length} file(s) imported</div>
+          <ul className="expanded-files-list">
+            {importedFiles.map((f) => (
               <li key={f.id}>{f.relative_path}</li>
             ))}
           </ul>
