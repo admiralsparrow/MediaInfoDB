@@ -7,18 +7,21 @@ class FolderBrowser:
     def __init__(self):
         self.allowed_roots = [Path(r).resolve() for r in settings.allowed_roots_list]
 
-    def is_path_allowed(self, path: str) -> bool:
+    def _resolve_allowed_path(self, path: str) -> Path:
         resolved = Path(path).resolve()
-        return any(
-            resolved == root or root in resolved.parents
-            for root in self.allowed_roots
-        )
+        if not any(resolved == root or root in resolved.parents for root in self.allowed_roots):
+            raise PermissionError("Path outside allowed roots")
+        return resolved
+
+    def is_path_allowed(self, path: str) -> bool:
+        try:
+            self._resolve_allowed_path(path)
+            return True
+        except PermissionError:
+            return False
 
     def list_directory(self, path: str) -> list[dict]:
-        if not self.is_path_allowed(path):
-            raise PermissionError("Path outside allowed roots")
-
-        resolved = Path(path).resolve()
+        resolved = self._resolve_allowed_path(path)
         if not resolved.is_dir():
             raise FileNotFoundError("Not a directory")
 
