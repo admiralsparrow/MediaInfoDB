@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState, useRef, useEffect } from "react";
-import { fetchFilterOptions } from "../../api/media";
+import { fetchFilterOptions, fetchFolderChildren } from "../../api/media";
 import { filterDefinitions } from "./filterDefinitions";
 
 interface SavedQuery {
@@ -144,6 +144,7 @@ export default function FilterPanel({ filters, onChange, libraryId, onLoadQuery 
                   valueMax={def.apiParamMax ? filters[def.apiParamMax] || "" : ""}
                   options={options?.[def.apiParam]}
                   loading={optionsFetching}
+                  libraryId={libraryId}
                   onChange={(v) => setFilter(def.apiParam, v)}
                   onChangeRange={(min, max) => {
                     if (def.apiParamMax) {
@@ -270,8 +271,41 @@ interface FilterInputProps {
   valueMax?: string;
   options?: string[];
   loading?: boolean;
+  libraryId?: number | null;
   onChange: (value: string) => void;
   onChangeRange?: (min: string, max: string) => void;
+}
+
+function DebouncedInput({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const [local, setLocal] = useState(value);
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (local !== value) onChange(local);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [local]);
+
+  return (
+    <input
+      type="text"
+      value={local}
+      placeholder={placeholder}
+      onChange={(e) => setLocal(e.target.value)}
+    />
+  );
 }
 
 function SearchableSelect({
@@ -414,36 +448,123 @@ function SearchableSelect({
   );
 }
 
-function FolderLevelSelect({
-  items,
+function FolderPathPicker({
+  value,
+  libraryId,
+  onChange,
+}: {
+  value: string;
+  libraryId?: number | null;
+  onChange: (value: string) => void;
+}) {
+  const currentParts = value ? value.split("/") : [];
+
+  const prefixes = [
+    "",
+    ...currentParts.map((_, i) => currentParts.slice(0, i + 1).join("/")),
+  ];
+
+  return (
+    <div className="folder-path-picker">
+      {value && (
+        <div className="folder-path-breadcrumb">
+          <button className="breadcrumb-root" onClick={() => onChange("")}>All</button>
+          {currentParts.map((part, i) => (
+            <span key={i}>
+              <span className="breadcrumb-sep">/</span>
+              <button
+                className="breadcrumb-part"
+                onClick={() => onChange(currentParts.slice(0, i + 1).join("/"))}
+              >
+                {part}
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {prefixes.map((prefix, depth) => (
+        <FolderLevelSelectAsync
+          key={prefix}
+          prefix={prefix}
+          libraryId={libraryId}
+          selected={currentParts[depth] || ""}
+          placeholder={depth === 0 ? "All folders" : "— select —"}
+          onSelect={(val) => {
+            if (val) {
+              onChange([...currentParts.slice(0, depth), val].join("/"));
+            } else {
+              onChange(currentParts.slice(0, depth).join("/"));
+            }
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function FolderLevelSelectAsync({
+  prefix,
+  libraryId,
   selected,
   placeholder,
   onSelect,
 }: {
-  items: string[];
+  prefix: string;
+  libraryId?: number | null;
   selected: string;
   placeholder: string;
   onSelect: (value: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
         setSearch("");
+        setDebouncedSearch("");
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const filtered = items.filter((item) =>
-    item.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: children, isLoading } = useQuery({
+    queryKey: ["folderChildren", prefix, libraryId, debouncedSearch],
+    queryFn: () => fetchFolderChildren(prefix, libraryId, debouncedSearch),
+    staleTime: 60_000,
+    enabled: open || !!selected,
+  });
+
+  const items = children || [];
+  const MAX_VISIBLE = 1000;
+  const visible = items.slice(0, MAX_VISIBLE);
+
+  if (!open && !selected && !isLoading) {
+    // Render just the trigger to check if there are children
+    return (
+      <div className="folder-level-select" ref={containerRef}>
+        <div
+          className="folder-level-trigger"
+          onClick={() => {
+            setOpen(true);
+            setTimeout(() => inputRef.current?.focus(), 0);
+          }}
+        >
+          <span className="placeholder">{placeholder}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="folder-level-select" ref={containerRef}>
@@ -475,7 +596,8 @@ function FolderLevelSelect({
             >
               {placeholder}
             </li>
-            {filtered.map((item) => (
+            {isLoading && <li className="no-results">Loading…</li>}
+            {!isLoading && visible.map((item) => (
               <li
                 key={item}
                 className={item === selected ? "active" : ""}
@@ -484,7 +606,12 @@ function FolderLevelSelect({
                 {item}
               </li>
             ))}
-            {filtered.length === 0 && (
+            {!isLoading && items.length > MAX_VISIBLE && (
+              <li className="no-results">
+                {items.length - MAX_VISIBLE} more — type to narrow
+              </li>
+            )}
+            {!isLoading && items.length === 0 && debouncedSearch && (
               <li className="no-results">No matches</li>
             )}
           </ul>
@@ -494,95 +621,13 @@ function FolderLevelSelect({
   );
 }
 
-function FolderPathPicker({
-  value,
-  options,
-  loading,
-  onChange,
-}: {
-  value: string;
-  options?: string[];
-  loading?: boolean;
-  onChange: (value: string) => void;
-}) {
-  const allDirs = options || [];
-
-  const currentParts = value ? value.split("/") : [];
-
-  const levels: string[][] = [];
-  if (!loading) {
-    for (let depth = 0; depth <= currentParts.length; depth++) {
-      const prefix = currentParts.slice(0, depth).join("/");
-      const children = new Set<string>();
-      for (const dir of allDirs) {
-        const parts = dir.split("/");
-        if (parts.length > depth) {
-          const parentPath = parts.slice(0, depth).join("/");
-          if (parentPath === prefix) {
-            children.add(parts[depth]);
-          }
-        }
-      }
-      if (children.size > 0) {
-        levels.push(Array.from(children).sort());
-      } else {
-        break;
-      }
-    }
-  }
-
-  return (
-    <div className="folder-path-picker">
-      {loading ? (
-        <span className="folder-path-loading">Loading…</span>
-      ) : levels.length === 0 ? (
-        <span className="folder-path-empty">No folders</span>
-      ) : (
-        <>
-          {value && (
-            <div className="folder-path-breadcrumb">
-              <button className="breadcrumb-root" onClick={() => onChange("")}>All</button>
-              {currentParts.map((part, i) => (
-                <span key={i}>
-                  <span className="breadcrumb-sep">/</span>
-                  <button
-                    className="breadcrumb-part"
-                    onClick={() => onChange(currentParts.slice(0, i + 1).join("/"))}
-                  >
-                    {part}
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          {levels.map((children, depth) => (
-            <FolderLevelSelect
-              key={depth}
-              items={children}
-              selected={currentParts[depth] || ""}
-              placeholder={depth === 0 ? "All folders" : "— select —"}
-              onSelect={(val) => {
-                if (val) {
-                  onChange([...currentParts.slice(0, depth), val].join("/"));
-                } else {
-                  onChange(currentParts.slice(0, depth).join("/"));
-                }
-              }}
-            />
-          ))}
-        </>
-      )}
-    </div>
-  );
-}
-
-function FilterInput({ def, value, valueMax, options, loading, onChange, onChangeRange }: FilterInputProps) {
+function FilterInput({ def, value, valueMax, options, libraryId, onChange, onChangeRange }: FilterInputProps) {
   if (def.type === "enum") {
     if (def.apiParam === "folder_path") {
       return (
         <div className="filter-item filter-item-folder">
           <span>{def.label}</span>
-          <FolderPathPicker value={value} options={options} loading={loading} onChange={onChange} />
+          <FolderPathPicker value={value} libraryId={libraryId} onChange={onChange} />
         </div>
       );
     }
@@ -636,11 +681,10 @@ function FilterInput({ def, value, valueMax, options, loading, onChange, onChang
     return (
       <label className="filter-item">
         <span>{def.label}</span>
-        <input
-          type="text"
+        <DebouncedInput
           value={value}
           placeholder={`Search ${def.label.toLowerCase()}...`}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
         />
       </label>
     );

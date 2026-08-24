@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
@@ -27,7 +28,7 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 FILTER_REGISTRY: dict[str, tuple[type, str, str]] = {
-    "search": (MediaFile, "file_name", "text"),
+    "search": (MediaFile, "file_name", "fuzzy"),
     "folder_path": (MediaFile, "relative_path", "prefix"),
     "container_format": (MediaFile, "container_format", "enum"),
     "title": (MediaFile, "title", "text"),
@@ -183,6 +184,14 @@ def build_media_query(filters: dict[str, str]) -> Select:
             elif filter_type == "prefix":
                 escaped = _escape_like(value)
                 conditions.append(col.like(f"{escaped}%", escape="\\"))
+            elif filter_type == "fuzzy":
+                tokens = [t for t in re.split(r"[\s._\-]+", value) if t]
+                if tokens:
+                    token_conditions = [
+                        col.ilike(f"%{_escape_like(t)}%", escape="\\")
+                        for t in tokens
+                    ]
+                    conditions.append(and_(*token_conditions))
 
     for model in joins_needed:
         query = query.join(model)
@@ -238,24 +247,5 @@ async def get_filter_options(
                 values.insert(0, "(none)")
             if values:
                 options[param] = values
-
-    path_query = select(MediaFile.relative_path).where(
-        MediaFile.relative_path.isnot(None)
-    ).distinct()
-    if library_id:
-        path_query = path_query.join(ScannedFolder).join(
-            library_folders, library_folders.c.folder_id == ScannedFolder.id
-        )
-        path_query = path_query.where(library_folders.c.library_id == library_id)
-
-    result = await db.execute(path_query)
-    paths = [r[0] for r in result.all()]
-    dirs: set[str] = set()
-    for p in paths:
-        parts = p.split("/")
-        for i in range(1, len(parts)):
-            dirs.add("/".join(parts[:i]))
-    if dirs:
-        options["folder_path"] = sorted(dirs)
 
     return options

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchMedia, fetchMediaCount, rescanFiles } from "../../api/media";
 import type { MediaFileDetail } from "../../types/media";
 import TrackDetails from "./TrackDetails";
@@ -39,13 +39,19 @@ export default function MediaTable({ filters }: Props) {
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [pageSize, setPageSize] = useState<number>(() => {
     const saved = localStorage.getItem("mediainfo-page-size");
     return saved ? Number(saved) : 100;
   });
 
-  const activeFilters = search
-    ? { ...filters, search }
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const activeFilters = debouncedSearch
+    ? { ...filters, search: debouncedSearch }
     : filters;
 
   const visibleColumns = visibleKeys

@@ -7,7 +7,7 @@ from sqlalchemy import delete as sa_delete, func, select, update
 from sqlalchemy.orm import selectinload
 
 from app.database import async_session
-from app.models import MediaFile, ScanJob, ScanQueueItem, ScannedFolder
+from app.models import FolderPath, MediaFile, ScanJob, ScanQueueItem, ScannedFolder
 from app.services.scanner import scan_file, find_video_files
 from app.worker.scheduler import clear_abort, get_abort_event, get_scan_lock
 
@@ -22,6 +22,43 @@ def _get_mtime(path: str) -> datetime:
 
 def _relative_path(file_path: str, folder_path: str) -> str:
     return os.path.relpath(file_path, folder_path)
+
+
+async def rebuild_folder_paths(folder_id: int, db=None):
+    """Rebuild the folder_paths table for a given folder from current media_files."""
+    from collections import defaultdict
+
+    async def _do(session):
+        result = await session.execute(
+            select(MediaFile.relative_path)
+            .where(MediaFile.folder_id == folder_id)
+            .where(MediaFile.relative_path.isnot(None))
+        )
+        paths = [r[0] for r in result.all()]
+
+        counts: dict[str, int] = defaultdict(int)
+        for p in paths:
+            parts = p.split("/")
+            for i in range(1, len(parts)):
+                counts["/".join(parts[:i])] += 1
+
+        await session.execute(
+            sa_delete(FolderPath).where(FolderPath.folder_id == folder_id)
+        )
+
+        if counts:
+            session.add_all([
+                FolderPath(folder_id=folder_id, path=path, file_count=count)
+                for path, count in counts.items()
+            ])
+        await session.flush()
+
+    if db:
+        await _do(db)
+    else:
+        async with async_session() as session:
+            await _do(session)
+            await session.commit()
 
 
 async def recover_interrupted_queue():
@@ -373,6 +410,7 @@ async def _do_process_queue(folder_id: int, job_id: int):
             folder.file_count = count or 0
             job.status = "completed"
             job.finished_at = datetime.now(timezone.utc)
+            await rebuild_folder_paths(folder_id, db)
             logger.info("Queue processing complete for folder %s: %d files", folder.path, folder.file_count)
 
         except Exception as e:

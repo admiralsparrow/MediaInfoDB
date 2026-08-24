@@ -66,6 +66,14 @@ export function fetchFilterOptions(libraryId?: number | null): Promise<Record<st
   return apiFetch(`/media/filters/options${params}`);
 }
 
+export function fetchFolderChildren(prefix: string, libraryId?: number | null, search?: string): Promise<string[]> {
+  const params = new URLSearchParams();
+  if (prefix) params.set("prefix", prefix);
+  if (libraryId) params.set("library_id", String(libraryId));
+  if (search) params.set("search", search);
+  return apiFetch(`/media/folders/children?${params}`);
+}
+
 export function rescanFiles(fileIds: number[]): Promise<{ message: string }> {
   return apiFetch("/media/rescan", {
     method: "POST",

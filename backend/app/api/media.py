@@ -68,7 +68,7 @@ async def list_media(
     if order not in ("asc", "desc"):
         raise HTTPException(status_code=400, detail="order must be 'asc' or 'desc'")
 
-    recognized_keys = set(FILTER_REGISTRY.keys()) | {"library_id", "folder_id"}
+    recognized_keys = set(FILTER_REGISTRY.keys()) | {"library_id", "folder_id", "tz_offset"}
     filters = {k: v for k, v in request.query_params.items() if k in recognized_keys}
 
     sort_spec = SORT_MAP[sort]
@@ -126,7 +126,7 @@ async def media_count(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    recognized_keys = set(FILTER_REGISTRY.keys()) | {"library_id", "folder_id"}
+    recognized_keys = set(FILTER_REGISTRY.keys()) | {"library_id", "folder_id", "tz_offset"}
     filters = {k: v for k, v in request.query_params.items() if k in recognized_keys}
     query = build_media_query(filters)
     count_query = select(func.count()).select_from(query.subquery())
@@ -142,32 +142,51 @@ async def filter_options(
     return await get_filter_options(db, library_id=library_id)
 
 
-@router.get("/folders/tree")
-async def folder_tree(
+@router.get("/folders/children")
+async def folder_children(
+    prefix: str = "",
+    search: str = "",
     library_id: int | None = None,
+    folder_id: int | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """Get distinct subfolder paths for the folder filter tree."""
-    from app.models import ScannedFolder
+    """Get immediate child folder names at the given prefix level."""
+    from app.models import FolderPath, ScannedFolder
     from app.models.library import library_folders as lf
 
-    query = select(MediaFile.relative_path).where(
-        MediaFile.relative_path.isnot(None)
-    ).distinct()
-    if library_id:
+    depth = len(prefix.split("/")) + 1 if prefix else 1
+
+    query = select(FolderPath.path).distinct()
+    if folder_id:
+        query = query.where(FolderPath.folder_id == folder_id)
+    elif library_id:
         query = query.join(ScannedFolder).join(lf, lf.c.folder_id == ScannedFolder.id)
         query = query.where(lf.c.library_id == library_id)
 
+    if prefix:
+        query = query.where(FolderPath.path.like(f"{prefix}/%"))
+
+    # Only get paths at exactly the target depth (immediate children)
     result = await db.execute(query)
-    paths = [r[0] for r in result.all()]
+    children: set[str] = set()
+    prefix_parts_len = len(prefix.split("/")) if prefix else 0
+    for (path,) in result.all():
+        parts = path.split("/")
+        if prefix:
+            if len(parts) > prefix_parts_len:
+                children.add(parts[prefix_parts_len])
+        else:
+            children.add(parts[0])
 
-    dirs: set[str] = set()
-    for p in paths:
-        parts = p.split("/")
-        for i in range(1, len(parts)):
-            dirs.add("/".join(parts[:i]))
+    if search:
+        import re
+        _sep = re.compile(r"[\s._\-]+")
+        tokens = [t for t in _sep.split(search.lower()) if t]
+        children = {c for c in children if all(
+            t in _sep.sub(" ", c.lower()) for t in tokens
+        )}
 
-    return sorted(dirs)
+    return sorted(children)
 
 
 @router.post("/rescan", status_code=202)

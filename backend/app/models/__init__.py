@@ -1,5 +1,6 @@
 from app.models.library import Library, library_folders
 from app.models.folder import ScannedFolder
+from app.models.folder_path import FolderPath
 from app.models.media_file import MediaFile
 from app.models.video_track import VideoTrack
 from app.models.audio_track import AudioTrack
@@ -13,6 +14,7 @@ __all__ = [
     "Library",
     "library_folders",
     "ScannedFolder",
+    "FolderPath",
     "MediaFile",
     "VideoTrack",
     "AudioTrack",

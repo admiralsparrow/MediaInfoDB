@@ -19,4 +19,5 @@ class ScannedFolder(Base):
 
     libraries = relationship("Library", secondary="library_folders", back_populates="folders")
     media_files = relationship("MediaFile", back_populates="folder", cascade="all, delete-orphan")
+    folder_paths = relationship("FolderPath", back_populates="folder", cascade="all, delete-orphan")
     scan_jobs = relationship("ScanJob", back_populates="folder", cascade="all, delete-orphan")
