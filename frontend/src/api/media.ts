@@ -25,6 +25,14 @@ function applyMultipliers(filters: Record<string, string>): Record<string, strin
   return result;
 }
 
+function injectTzOffset(filters: Record<string, string>): Record<string, string> {
+  const hasDate = Object.keys(filters).some(
+    (k) => k.startsWith("scanned_at") || k.startsWith("file_modified_at")
+  );
+  if (!hasDate) return filters;
+  return { ...filters, tz_offset: String(new Date().getTimezoneOffset()) };
+}
+
 export function fetchMedia(
   filters: Record<string, string>,
   page = 1,
@@ -37,7 +45,7 @@ export function fetchMedia(
     page_size: String(pageSize),
     sort,
     order,
-    ...applyMultipliers(filters),
+    ...injectTzOffset(applyMultipliers(filters)),
   });
   return apiFetch(`/media?${params}`);
 }
@@ -45,7 +53,7 @@ export function fetchMedia(
 export function fetchMediaCount(
   filters: Record<string, string>
 ): Promise<{ count: number }> {
-  const params = new URLSearchParams(applyMultipliers(filters));
+  const params = new URLSearchParams(injectTzOffset(applyMultipliers(filters)));
   return apiFetch(`/media/count?${params}`);
 }
 

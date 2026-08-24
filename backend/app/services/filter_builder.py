@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy import Integer, Select, and_, exists, func, not_, or_, select
@@ -15,9 +15,10 @@ def _safe_int(value: str, param_name: str) -> int:
         raise HTTPException(status_code=400, detail=f"Invalid integer for '{param_name}': {value}")
 
 
-def _safe_date(value: str, param_name: str) -> datetime:
+def _safe_date(value: str, param_name: str, tz_offset_minutes: int = 0) -> datetime:
     try:
-        return datetime.combine(date.fromisoformat(value), datetime.min.time())
+        midnight_local = datetime.combine(date.fromisoformat(value), datetime.min.time())
+        return midnight_local + timedelta(minutes=tz_offset_minutes)
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail=f"Invalid date for '{param_name}': {value}")
 
@@ -92,6 +93,8 @@ def build_media_query(filters: dict[str, str]) -> Select:
     query = select(MediaFile)
     joins_needed: set[type] = set()
     conditions = []
+
+    tz_offset_minutes = _safe_int(filters["tz_offset"], "tz_offset") if filters.get("tz_offset") else 0
 
     if "library_id" in filters and filters["library_id"]:
         query = query.join(ScannedFolder).join(
@@ -170,9 +173,9 @@ def build_media_query(filters: dict[str, str]) -> Select:
             elif filter_type == "lte":
                 conditions.append(col <= _safe_int(value, param))
             elif filter_type == "date_gte":
-                conditions.append(col >= _safe_date(value, param))
+                conditions.append(col >= _safe_date(value, param, tz_offset_minutes))
             elif filter_type == "date_lte":
-                dt = _safe_date(value, param)
+                dt = _safe_date(value, param, tz_offset_minutes)
                 conditions.append(col < dt + timedelta(days=1))
             elif filter_type == "text":
                 escaped = _escape_like(value)
