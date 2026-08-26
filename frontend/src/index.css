@@ -599,9 +599,9 @@ button.library-item.active {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 1.4rem;
   padding: 0;
-  width: 16px;
+  width: 26px;
 }
 
 .library-item-info {

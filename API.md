@@ -896,8 +896,8 @@ The media list endpoint (`GET /api/v1/media`) and count endpoint (`GET /api/v1/m
 |------|----------|---------|
 | **enum** | Comma-separated values, matches any (SQL `IN`). Prefix with `!` to negate (files that do NOT match). | `video.codec=HEVC,AVC` or `video.codec=!HEVC` |
 | **boolean** | `true`/`1`/`yes` = true, anything else = false | `video.hdr10=true` |
-| **gte** | Greater than or equal (integer) | `video.bitrate_min=10000000` |
-| **lte** | Less than or equal (integer) | `overall_bitrate_max=50000000` |
+| **gte** | Greater than or equal (integer). Use `(none)` to match NULL values. | `video.bitrate_min=10000000` or `video.bitrate_min=(none)` |
+| **lte** | Less than or equal (integer). Use `(none)` to match NULL values. | `overall_bitrate_max=50000000` or `audio.bitrate_max=(none)` |
 | **date_gte** | On or after date (ISO 8601 date string) | `scanned_at_min=2024-01-01` |
 | **date_lte** | On or before date (inclusive, full day) | `file_modified_at_max=2024-06-30` |
 | **count_gte** | Track count >= value (files with at least N tracks) | `audio.track_count_min=2` |
@@ -923,6 +923,7 @@ The media list endpoint (`GET /api/v1/media`) and count endpoint (`GET /api/v1/m
 | `provider` | enum | Provider |
 | `year` | enum | Release year |
 | `hybrid` | boolean | Hybrid remux flag |
+| `invalid` | boolean | Invalid files (no video tracks extracted by pymediainfo) |
 | `scanned_at_min` | date_gte | Scanned on or after date |
 | `scanned_at_max` | date_lte | Scanned on or before date |
 | `file_modified_at_min` | date_gte | File modified on or after date |
@@ -1022,4 +1023,13 @@ GET /api/v1/media?scanned_at_min=2024-01-01&scanned_at_max=2024-01-31
 
 # Files modified after a specific date
 GET /api/v1/media?file_modified_at_min=2024-06-01
+
+# Invalid files (no video tracks — possibly corrupted or incomplete)
+GET /api/v1/media?invalid=true
+
+# Files where video bitrate is not available (NULL)
+GET /api/v1/media?video.bitrate_min=(none)
+
+# Files where audio bitrate is not available (NULL)
+GET /api/v1/media?audio.bitrate_min=(none)
 ```

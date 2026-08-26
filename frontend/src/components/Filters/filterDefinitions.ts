@@ -9,6 +9,7 @@ export const filterDefinitions: FilterDefinition[] = [
   { key: "provider", label: "Provider", type: "enum", group: "general", apiParam: "provider" },
   { key: "year", label: "Year", type: "enum", group: "general", apiParam: "year" },
   { key: "hybrid", label: "Hybrid", type: "boolean", group: "general", apiParam: "hybrid" },
+  { key: "invalid", label: "Invalid (No Tracks)", type: "boolean", group: "general", apiParam: "invalid" },
   { key: "overall_bitrate", label: "Overall Bitrate (Mbps)", type: "range", group: "general", apiParam: "overall_bitrate_min", apiParamMax: "overall_bitrate_max", multiplier: 1_000_000 },
   { key: "scanned_at", label: "Date Scanned", type: "date_range", group: "general", apiParam: "scanned_at_min", apiParamMax: "scanned_at_max" },
   { key: "file_modified_at", label: "Date Modified", type: "date_range", group: "general", apiParam: "file_modified_at_min", apiParamMax: "file_modified_at_max" },

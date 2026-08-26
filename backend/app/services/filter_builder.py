@@ -107,6 +107,15 @@ def build_media_query(filters: dict[str, str]) -> Select:
     if "folder_id" in filters and filters["folder_id"]:
         conditions.append(MediaFile.folder_id == _safe_int(filters["folder_id"], "folder_id"))
 
+    if "invalid" in filters and filters["invalid"]:
+        has_video = exists(
+            select(VideoTrack.id).where(VideoTrack.media_file_id == MediaFile.id)
+        )
+        if filters["invalid"].lower() in ("true", "1", "yes"):
+            conditions.append(not_(has_video))
+        else:
+            conditions.append(has_video)
+
     for param, value in filters.items():
         if param not in FILTER_REGISTRY or not value:
             continue
@@ -170,9 +179,15 @@ def build_media_query(filters: dict[str, str]) -> Select:
             if filter_type == "boolean":
                 conditions.append(col == (value.lower() in ("true", "1", "yes")))
             elif filter_type == "gte":
-                conditions.append(col >= _safe_int(value, param))
+                if value == "(none)":
+                    conditions.append(col.is_(None))
+                else:
+                    conditions.append(col >= _safe_int(value, param))
             elif filter_type == "lte":
-                conditions.append(col <= _safe_int(value, param))
+                if value == "(none)":
+                    conditions.append(col.is_(None))
+                else:
+                    conditions.append(col <= _safe_int(value, param))
             elif filter_type == "date_gte":
                 conditions.append(col >= _safe_date(value, param, tz_offset_minutes))
             elif filter_type == "date_lte":

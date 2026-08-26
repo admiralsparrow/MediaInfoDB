@@ -691,24 +691,43 @@ function FilterInput({ def, value, valueMax, options, libraryId, onChange, onCha
   }
 
   if (def.type === "range") {
+    const isMissing = value === "(none)";
     return (
       <div className="filter-item filter-range">
-        <span>{def.label}</span>
-        <div className="range-inputs">
-          <input
-            type="number"
-            value={value}
-            placeholder="Min"
-            onChange={(e) => onChangeRange?.(e.target.value, valueMax || "")}
-          />
-          <span className="range-separator">–</span>
-          <input
-            type="number"
-            value={valueMax || ""}
-            placeholder="Max"
-            onChange={(e) => onChangeRange?.(value, e.target.value)}
-          />
+        <div className="filter-label-row">
+          <span>{def.label}</span>
+          <label className="invert-toggle" title="Show only files where this value is missing">
+            <input
+              type="checkbox"
+              checked={isMissing}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  onChangeRange?.("(none)", "");
+                } else {
+                  onChangeRange?.("", "");
+                }
+              }}
+            />
+            <span className="invert-toggle-label">N/A</span>
+          </label>
         </div>
+        {!isMissing && (
+          <div className="range-inputs">
+            <input
+              type="number"
+              value={value}
+              placeholder="Min"
+              onChange={(e) => onChangeRange?.(e.target.value, valueMax || "")}
+            />
+            <span className="range-separator">–</span>
+            <input
+              type="number"
+              value={valueMax || ""}
+              placeholder="Max"
+              onChange={(e) => onChangeRange?.(value, e.target.value)}
+            />
+          </div>
+        )}
       </div>
     );
   }

@@ -58,7 +58,7 @@ router = APIRouter()
 async def list_media(
     request: Request,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=50, ge=1, le=500),
+    page_size: int = Query(default=50, ge=1, le=10000),
     sort: str = Query(default="file_name"),
     order: str = Query(default="asc"),
     db: AsyncSession = Depends(get_db),
@@ -68,7 +68,7 @@ async def list_media(
     if order not in ("asc", "desc"):
         raise HTTPException(status_code=400, detail="order must be 'asc' or 'desc'")
 
-    recognized_keys = set(FILTER_REGISTRY.keys()) | {"library_id", "folder_id", "tz_offset"}
+    recognized_keys = set(FILTER_REGISTRY.keys()) | {"library_id", "folder_id", "tz_offset", "invalid"}
     filters = {k: v for k, v in request.query_params.items() if k in recognized_keys}
 
     sort_spec = SORT_MAP[sort]
@@ -126,7 +126,7 @@ async def media_count(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    recognized_keys = set(FILTER_REGISTRY.keys()) | {"library_id", "folder_id", "tz_offset"}
+    recognized_keys = set(FILTER_REGISTRY.keys()) | {"library_id", "folder_id", "tz_offset", "invalid"}
     filters = {k: v for k, v in request.query_params.items() if k in recognized_keys}
     query = build_media_query(filters)
     count_query = select(func.count()).select_from(query.subquery())

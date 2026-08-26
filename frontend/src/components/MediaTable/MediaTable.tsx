@@ -253,12 +253,18 @@ export default function MediaTable({ filters }: Props) {
         >
           {rescanMutation.isPending ? "Rescanning..." : "Re-analyse files in above table"}
         </button>
+        <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(1)}>
+          First
+        </button>
         <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
           Previous
         </button>
         <span>Page {page} of {totalPages || 1}</span>
         <button className="btn btn-sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
           Next
+        </button>
+        <button className="btn btn-sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>
+          Last
         </button>
         <select
           className="page-size-select"
