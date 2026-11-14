@@ -9,6 +9,7 @@ from app.models.audio_track import AudioTrack
 from app.models.media_file import MediaFile
 from app.models.subtitle_track import SubtitleTrack
 from app.models.video_track import VideoTrack
+from app.services.providers import parse_provider
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ def scan_file(file_path: str) -> MediaFile | None:
         file_size_bytes=os.path.getsize(file_path),
         release_group=_parse_release_group(filename),
         source=_parse_source(filename),
-        provider=_parse_provider(filename),
+        provider=parse_provider(filename),
         year=_parse_year(filename, file_path),
         hybrid=_parse_hybrid(filename, file_path),
     )
@@ -299,27 +300,14 @@ def _parse_source(filename: str) -> str | None:
     return None
 
 
-_PROVIDERS = [
-    "AMZN", "NF", "ATVP", "DSNP", "HMAX", "MAX", "HULU", "PCOK", "PMTP",
-    "iT", "APTV", "STAN", "CR", "CRAV", "BCORE", "VUDU", "MUBI",
-]
-_PROVIDER_RE = re.compile(
-    r"\b(" + "|".join(_PROVIDERS) + r"|MA(?=[\.\-\s]WEB))\b"
-)
-
-
-def _parse_provider(filename: str) -> str | None:
-    match = _PROVIDER_RE.search(filename)
-    return match.group(1) if match else None
-
-
 _YEAR_RE = re.compile(r"[\.\s\-\(](\d{4})(?=[\.\s\-\)]|$)")
 _RELEASE_INFO_RE = re.compile(
     r"[\.\s\-]("
     r"480[ip]|576[ip]|720[ip]|1080[ip]|2160[ip]|4320[ip]|4K|UHD"
-    r"|BluRay|Blu-Ray|BDRip|BRRip|WEB-DL|WEBRip|WEB|HDTV|DVDRip|DVD"
+    r"|BluRay|Blu-Ray|BDRip|BRRip|WEB-DL|WEB-Rip|WEBRip|HDTV|DVDRip|DVD"
     r"|REMUX|HDR|DV|DoVi|SDR|10bit|HEVC|H\.?264|H\.?265|x264|x265|AVC|MPEG"
     r"|AAC|DTS|TrueHD|Atmos|FLAC|AC3|EAC3|DD[P+]?"
+    r"|(?-i:WEB)"
     r")[\.\s\-]",
     re.IGNORECASE,
 )
